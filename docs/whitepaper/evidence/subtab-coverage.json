@@ -72,9 +72,7 @@
       "option": "TCA",
       "capture_id": "G006",
       "status": "captured",
-      "limitations": [
-        "gateway unavailable"
-      ],
+      "limitations": [],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
     {
@@ -114,9 +112,7 @@
       "option": "Decision tape",
       "capture_id": "G008",
       "status": "captured",
-      "limitations": [
-        "gateway unavailable"
-      ],
+      "limitations": [],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
     {
@@ -257,7 +253,9 @@
       "option": "Verdict",
       "capture_id": "F031",
       "status": "captured",
-      "limitations": [],
+      "limitations": [
+        "gateway unavailable"
+      ],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
     {
@@ -338,7 +336,9 @@
       "option": "Map",
       "capture_id": "F039",
       "status": "captured",
-      "limitations": [],
+      "limitations": [
+        "gateway unavailable"
+      ],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
     {
@@ -347,7 +347,9 @@
       "option": "Live dependency DAG",
       "capture_id": "F143",
       "status": "captured",
-      "limitations": [],
+      "limitations": [
+        "gateway unavailable"
+      ],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
     {
@@ -357,7 +359,7 @@
       "capture_id": "F144",
       "status": "captured",
       "limitations": [
-        "provider failure"
+        "gateway unavailable"
       ],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
@@ -367,7 +369,9 @@
       "option": "Platform",
       "capture_id": "F145",
       "status": "captured",
-      "limitations": [],
+      "limitations": [
+        "gateway unavailable"
+      ],
       "basis": "Named capture or source-default pane; image review required, no activation inferred."
     },
     {

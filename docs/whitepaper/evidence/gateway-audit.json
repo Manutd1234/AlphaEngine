@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-10-05T12:35:57.714Z",
+  "vercel_portfolio": {
+    "url": "https://alphaengine-workspace.vercel.app/api/gateway/portfolio",
+    "response": {
+      "code": "gateway_timeout",
+      "error": "The risk gateway did not answer within 8000ms."
+    }
+  },
+  "oracle_vm": {
+    "host": "149.118.48.255",
+    "ssh_port_22": "connect timeout",
+    "tls_port_8443": "connect timeout; pinned CA retained"
+  },
+  "runtime_logs": "No warning/error entries returned for the 30-minute filter; this is not evidence of health.",
+  "repair_status": "blocked: Oracle Cloud console sign-in required to inspect VM state and network path",
+  "configuration_change": "none; no speculative origin, TLS or auth changes",
+  "workflow_policy": "Leave all seven workflows disabled; temporary validation does not authorize recurring schedules.",
+  "account_access": "User reports Oracle sign-in does not work for their account; exact error pending. Console access and VM repair remain blocked."
+}

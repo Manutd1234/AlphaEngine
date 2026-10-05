@@ -38,3 +38,6 @@ publication-plan.json records every printed screenshot and every omission reason
 ui-sweep.json is a fresh Vercel navigation/control observation of all 120 registered views; current gateway outages remain explicit.
 capture-fixes.json contains new observed parity, reconciliation, Oracle and missing-pane results. No response payloads or screenshot pixels were fabricated.
 interaction-matrix.json/csv distinguish source documentation, observed controls, navigation and executed actions. A rendered view is not a successful backend test.
+
+Revision H adds capture-review.json (explicit visual overlap decisions), subtab-audit.json (selected-state assertions and separate Sandbox checks), and gateway-audit.json (current connection blocker). The normal build commands above apply the review automatically.
+The fresh diagnostic sweep is reproducible with node docs/whitepaper/tools/audit_feature_views.mjs from the repository root. It writes scratch captures under tmp/pdfs/revision-h and performs only navigation and presentation selection; it does not repair or start the gateway. Publishing replacement images still requires visual review and a capture-review.json decision.

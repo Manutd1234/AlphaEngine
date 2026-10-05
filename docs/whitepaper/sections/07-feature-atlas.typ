@@ -6,9 +6,9 @@
 
 #note("Evidence boundary", [#text("The initial outage captures have been replaced with actual deployed Vercel UI captures after the user requested reconnection of the OCI gateway and Caddy. Oracle calculations, providers and saved analytical history were read live. Three paper verification orders populated the live paper book; supplemental Sandbox book values are explicitly generated. No real venue trade, flatten, purge, outage, account creation or credential change was submitted. Private RFQ access requires an authenticated desk account. This is a documentation inventory, not proof that every production interaction succeeds.")])
 
-#text("Coverage: 11 workspace tabs, 70 registered sections, 120 registered URL views; 92 supplementary states; 372 unique printed screenshots including login; duplicate placements and repeated disclosure captures are cross-referenced rather than reprinted; 964 JSX control definitions and 49 event-listener registrations scanned across 855 source files.")
+#text("Coverage: 11 workspace tabs, 70 registered sections, 120 registered URL views; 92 supplementary states; 315 unique printed screenshots including login; duplicate placements and repeated disclosure captures are cross-referenced rather than reprinted; 964 JSX control definitions and 49 event-listener registrations scanned across 855 source files.")
 
-#text("The baseline screenshots displayed build 726bbe7. Oracle search and Oracle chart recaptures display production build 3b9918f6. Each capture retains its date and mode. The original source-control inventory is revision 9e763f7232b8bd55c341e9cb16543accc1648dac. These are different revisions. Runtime screenshots describe the deployed version; source entries describe the local repository and include conditional or reusable components. Dynamic rows, options and chart points are families of interactions, not a finite list of all future data values. A source definition is not proof of reachability from the current guest session.")
+#text("The baseline screenshots displayed build 726bbe7. Oracle search and Oracle chart recaptures display production build 3b9918f6. Each capture retains its date and mode. The original source-control inventory is revision 9e763f7232b8bd55c341e9cb16543accc1648dac. These are different revisions. Revision H captures also show the later production deployment after commit 23281d2. Runtime screenshots describe their observed deployed version; source entries describe the local repository and include conditional or reusable components. Dynamic rows, options and chart points are families of interactions, not a finite list of all future data values. A source definition is not proof of reachability from the current guest session.")
 
 #heading(level: 2)[#text("Operating state and capture provenance")]
 
@@ -213,13 +213,15 @@
 [#text("Findings")], [#text("#diffusion/findings")], [#text("What the study concluded, and whether it was fit to")],
 )
 
-#heading(level: 2)[#text("Revision G: screenshot and interaction audit")]
+#heading(level: 2)[#text("Revision H: visual-content and subtab audit")]
 
-#text("The publication plan deduplicates identical screenshot pixels and removes repeated disclosure-expanded image sets while retaining their original controls and provenance in the embedded evidence. Supplementary panes now follow their owning section. A continuation image is retained when it reveals content below the viewport; it is not a duplicate just because the navigation header repeats.")
+#text("Revision H goes beyond exact pixel hashes. Thirty-seven active-panel recaptures make the selected controls and feature content readable without repeating the whole dashboard. Thirty-two short-scroll or repeated-row images were identified for omission; superseded image sets are removed as part of recapture. Two states share a documented reference because the only visible change is a preference selection or the same private RFQ sign-in blocker. Every omission has a reason in capture-review.json; originals remain in the evidence.")
+
+#text("The fresh audit checked 120 registered destinations. All 70 selectable third-level URL views reported the expected selected label; two other URL destinations are single structural views. Fifty internal presentation panes were activated and asserted selected. Thirteen live Portfolio/Risk routes remained blocked, then their generated Sandbox variants were checked separately. None of these presentation checks certifies the live gateway. The gateway still times out on both SSH and HTTPS; Oracle console sign-in is required to inspect the host and network. See subtab-audit.json and gateway-audit.json.")
 
 #text("Current navigation and historical screenshots are separate observations. The deployed gateway still times out. Retained earlier live captures are dated evidence, not a claim that the backend is healthy now. New captures show the actual production state. A failed strategy gate, no admissible stake, or an unavailable private channel is not changed into invented success.")
 
-#text("Printed screenshots: 372. Repeated disclosure states omitted from print: 22. Exact duplicate placements replaced by references: 4. Original files and full evidence remain available.")
+#text("Printed screenshots: 315. Repeated disclosure states omitted from print: 22. Exact duplicate placements replaced by references: 4. Original files and full evidence remain available.")
 
 #heading(level: 3)[#text("Verification status definitions")]
 
@@ -244,9 +246,9 @@
 
 #set text(size: 8pt)
 #table(columns: (35%, 18%, 27%, 20%), table.header([Registered view], [Screenshot], [Current sweep], [Feature pages]),
-[#text("#overview/loop")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F001>)[#context [page #counter(page).at(<capture-F001>).first()]]],
-[#text("#overview/desks")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F002>)[#context [page #counter(page).at(<capture-F002>).first()]]],
-[#text("#overview/audit")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F003>)[#context [page #counter(page).at(<capture-F003>).first()]]],
+[#text("#overview/loop")], [#text("captured")], [#text("rendered")], [#link(<capture-F001>)[#context [page #counter(page).at(<capture-F001>).first()]]],
+[#text("#overview/desks")], [#text("captured")], [#text("rendered")], [#link(<capture-F002>)[#context [page #counter(page).at(<capture-F002>).first()]]],
+[#text("#overview/audit")], [#text("captured")], [#text("rendered")], [#link(<capture-F003>)[#context [page #counter(page).at(<capture-F003>).first()]]],
 [#text("#research/summary")], [#text("captured")], [#text("rendered")], [#link(<capture-F004>)[#context [page #counter(page).at(<capture-F004>).first()]]],
 [#text("#research/parameters")], [#text("captured")], [#text("rendered")], [#link(<capture-F005>)[#context [page #counter(page).at(<capture-F005>).first()]]],
 [#text("#research/walkforward")], [#text("captured")], [#text("rendered")], [#link(<capture-F006>)[#context [page #counter(page).at(<capture-F006>).first()]]],
@@ -257,23 +259,23 @@
 [#text("#research/fitted")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F011>)[#context [page #counter(page).at(<capture-F011>).first()]]],
 [#text("#research/codex")], [#text("captured")], [#text("rendered")], [#link(<capture-F012>)[#context [page #counter(page).at(<capture-F012>).first()]]],
 [#text("#live/trade")], [#text("captured")], [#text("rendered")], [#link(<capture-F013>)[#context [page #counter(page).at(<capture-F013>).first()]]],
-[#text("#live/liquidity")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F014>)[#context [page #counter(page).at(<capture-F014>).first()]]],
-[#text("#live/routing")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F015>)[#context [page #counter(page).at(<capture-F015>).first()]]],
-[#text("#live/quality")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F016>)[#context [page #counter(page).at(<capture-F016>).first()]]],
-[#text("#live/activity")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F017>)[#context [page #counter(page).at(<capture-F017>).first()]]],
-[#text("#portfolio/overview")], [#text("captured")], [#text("rendered")], [#link(<capture-F018>)[#context [page #counter(page).at(<capture-F018>).first()]]],
-[#text("#portfolio/equity")], [#text("captured")], [#text("rendered")], [#link(<capture-F019>)[#context [page #counter(page).at(<capture-F019>).first()]]],
-[#text("#portfolio/positions")], [#text("captured")], [#text("rendered")], [#link(<capture-F020>)[#context [page #counter(page).at(<capture-F020>).first()]]],
-[#text("#portfolio/allocation")], [#text("captured")], [#text("rendered")], [#link(<capture-F021>)[#context [page #counter(page).at(<capture-F021>).first()]]],
-[#text("#portfolio/performance")], [#text("captured")], [#text("rendered")], [#link(<capture-F022>)[#context [page #counter(page).at(<capture-F022>).first()]]],
-[#text("#risk/limits")], [#text("captured")], [#text("rendered")], [#link(<capture-F023>)[#context [page #counter(page).at(<capture-F023>).first()]]],
-[#text("#risk/model")], [#text("captured")], [#text("rendered")], [#link(<capture-F024>)[#context [page #counter(page).at(<capture-F024>).first()]]],
-[#text("#risk/diagram")], [#text("captured")], [#text("rendered")], [#link(<capture-F025>)[#context [page #counter(page).at(<capture-F025>).first()]]],
-[#text("#risk/drivers")], [#text("captured")], [#text("rendered")], [#link(<capture-F026>)[#context [page #counter(page).at(<capture-F026>).first()]]],
-[#text("#risk/montecarlo")], [#text("captured")], [#text("rendered")], [#link(<capture-F027>)[#context [page #counter(page).at(<capture-F027>).first()]]],
-[#text("#risk/oraclevar")], [#text("captured")], [#text("rendered")], [#link(<capture-F028>)[#context [page #counter(page).at(<capture-F028>).first()]]],
-[#text("#risk/scenarios")], [#text("captured")], [#text("rendered")], [#link(<capture-F029>)[#context [page #counter(page).at(<capture-F029>).first()]]],
-[#text("#risk/controls")], [#text("captured")], [#text("rendered")], [#link(<capture-F030>)[#context [page #counter(page).at(<capture-F030>).first()]]],
+[#text("#live/liquidity")], [#text("captured")], [#text("rendered")], [#link(<capture-F014>)[#context [page #counter(page).at(<capture-F014>).first()]]],
+[#text("#live/routing")], [#text("captured")], [#text("rendered")], [#link(<capture-F015>)[#context [page #counter(page).at(<capture-F015>).first()]]],
+[#text("#live/quality")], [#text("captured")], [#text("rendered")], [#link(<capture-F016>)[#context [page #counter(page).at(<capture-F016>).first()]]],
+[#text("#live/activity")], [#text("captured")], [#text("rendered")], [#link(<capture-F017>)[#context [page #counter(page).at(<capture-F017>).first()]]],
+[#text("#portfolio/overview")], [#text("captured")], [#text("blocked")], [#link(<capture-F018>)[#context [page #counter(page).at(<capture-F018>).first()]]],
+[#text("#portfolio/equity")], [#text("captured")], [#text("blocked")], [#link(<capture-F019>)[#context [page #counter(page).at(<capture-F019>).first()]]],
+[#text("#portfolio/positions")], [#text("captured")], [#text("blocked")], [#link(<capture-F020>)[#context [page #counter(page).at(<capture-F020>).first()]]],
+[#text("#portfolio/allocation")], [#text("captured")], [#text("blocked")], [#link(<capture-F021>)[#context [page #counter(page).at(<capture-F021>).first()]]],
+[#text("#portfolio/performance")], [#text("captured")], [#text("blocked")], [#link(<capture-F022>)[#context [page #counter(page).at(<capture-F022>).first()]]],
+[#text("#risk/limits")], [#text("captured")], [#text("blocked")], [#link(<capture-F023>)[#context [page #counter(page).at(<capture-F023>).first()]]],
+[#text("#risk/model")], [#text("captured")], [#text("blocked")], [#link(<capture-F024>)[#context [page #counter(page).at(<capture-F024>).first()]]],
+[#text("#risk/diagram")], [#text("captured")], [#text("blocked")], [#link(<capture-F025>)[#context [page #counter(page).at(<capture-F025>).first()]]],
+[#text("#risk/drivers")], [#text("captured")], [#text("blocked")], [#link(<capture-F026>)[#context [page #counter(page).at(<capture-F026>).first()]]],
+[#text("#risk/montecarlo")], [#text("captured")], [#text("blocked")], [#link(<capture-F027>)[#context [page #counter(page).at(<capture-F027>).first()]]],
+[#text("#risk/oraclevar")], [#text("captured")], [#text("blocked")], [#link(<capture-F028>)[#context [page #counter(page).at(<capture-F028>).first()]]],
+[#text("#risk/scenarios")], [#text("captured")], [#text("blocked")], [#link(<capture-F029>)[#context [page #counter(page).at(<capture-F029>).first()]]],
+[#text("#risk/controls")], [#text("captured")], [#text("blocked")], [#link(<capture-F030>)[#context [page #counter(page).at(<capture-F030>).first()]]],
 [#text("#data/overview")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F031>)[#context [page #counter(page).at(<capture-F031>).first()]]],
 [#text("#data/feeds")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F032>)[#context [page #counter(page).at(<capture-F032>).first()]]],
 [#text("#data/quality")], [#text("captured")], [#text("rendered")], [#link(<capture-F033>)[#context [page #counter(page).at(<capture-F033>).first()]]],
@@ -292,78 +294,78 @@
 [#text("#developer/apis")], [#text("captured")], [#text("rendered")], [#link(<capture-F046>)[#context [page #counter(page).at(<capture-F046>).first()]]],
 [#text("#developer/codebase")], [#text("captured")], [#text("rendered")], [#link(<capture-F047>)[#context [page #counter(page).at(<capture-F047>).first()]]],
 [#text("#developer/work")], [#text("captured")], [#text("rendered; empty queue")], [#link(<capture-F048>)[#context [page #counter(page).at(<capture-F048>).first()]]],
-[#text("#research/summary/setup")], [#text("captured")], [#text("rendered")], [#link(<capture-F049>)[#context [page #counter(page).at(<capture-F049>).first()]]],
-[#text("#markets/universe/baskets")], [#text("captured")], [#text("rendered")], [#link(<capture-F050>)[#context [page #counter(page).at(<capture-F050>).first()]]],
-[#text("#markets/universe/positions")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F051>)[#context [page #counter(page).at(<capture-F051>).first()]]],
-[#text("#markets/universe/families")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F052>)[#context [page #counter(page).at(<capture-F052>).first()]]],
-[#text("#markets/settlement/reading")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F053>)[#context [page #counter(page).at(<capture-F053>).first()]]],
-[#text("#markets/settlement/formation")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F054>)[#context [page #counter(page).at(<capture-F054>).first()]]],
-[#text("#markets/settlement/pending")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F055>)[#context [page #counter(page).at(<capture-F055>).first()]]],
-[#text("#markets/books/ladder")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F056>)[#context [page #counter(page).at(<capture-F056>).first()]]],
-[#text("#markets/books/identity")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F057>)[#context [page #counter(page).at(<capture-F057>).first()]]],
-[#text("#markets/books/history")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F058>)[#context [page #counter(page).at(<capture-F058>).first()]]],
-[#text("#markets/dispersion/quotes")], [#text("captured")], [#text("rendered; gateway unavailable, sign-in required")], [#link(<capture-F059>)[#context [page #counter(page).at(<capture-F059>).first()]]],
-[#text("#markets/dispersion/channel")], [#text("captured")], [#text("rendered; gateway unavailable, sign-in required")], [#link(<capture-F060>)[#context [page #counter(page).at(<capture-F060>).first()]]],
-[#text("#markets/lattice/survival")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F061>)[#context [page #counter(page).at(<capture-F061>).first()]]],
-[#text("#markets/lattice/mass")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F062>)[#context [page #counter(page).at(<capture-F062>).first()]]],
-[#text("#markets/lattice/moments")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F063>)[#context [page #counter(page).at(<capture-F063>).first()]]],
-[#text("#markets/lattice/support")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F064>)[#context [page #counter(page).at(<capture-F064>).first()]]],
-[#text("#markets/stake/plan")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F065>)[#context [page #counter(page).at(<capture-F065>).first()]]],
-[#text("#markets/stake/capital")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F066>)[#context [page #counter(page).at(<capture-F066>).first()]]],
-[#text("#markets/stake/method")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F067>)[#context [page #counter(page).at(<capture-F067>).first()]]],
-[#text("#markets/stake/family")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F068>)[#context [page #counter(page).at(<capture-F068>).first()]]],
-[#text("#markets/fees/example")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F069>)[#context [page #counter(page).at(<capture-F069>).first()]]],
-[#text("#markets/fees/shape")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F070>)[#context [page #counter(page).at(<capture-F070>).first()]]],
-[#text("#markets/fees/comparison")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F071>)[#context [page #counter(page).at(<capture-F071>).first()]]],
-[#text("#markets/fees/table")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F072>)[#context [page #counter(page).at(<capture-F072>).first()]]],
-[#text("#markets/shell/layout")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F073>)[#context [page #counter(page).at(<capture-F073>).first()]]],
-[#text("#markets/shell/route")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F074>)[#context [page #counter(page).at(<capture-F074>).first()]]],
-[#text("#markets/shell/tree")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F075>)[#context [page #counter(page).at(<capture-F075>).first()]]],
-[#text("#coherence/certificate/verdict")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F076>)[#context [page #counter(page).at(<capture-F076>).first()]]],
-[#text("#coherence/certificate/proof")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F077>)[#context [page #counter(page).at(<capture-F077>).first()]]],
-[#text("#coherence/certificate/checks")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F078>)[#context [page #counter(page).at(<capture-F078>).first()]]],
-[#text("#coherence/certificate/prices")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F079>)[#context [page #counter(page).at(<capture-F079>).first()]]],
-[#text("#coherence/certificate/sizes")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F080>)[#context [page #counter(page).at(<capture-F080>).first()]]],
-[#text("#coherence/portfolio/cover")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F081>)[#context [page #counter(page).at(<capture-F081>).first()]]],
-[#text("#coherence/portfolio/basket")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F082>)[#context [page #counter(page).at(<capture-F082>).first()]]],
-[#text("#coherence/portfolio/size")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F083>)[#context [page #counter(page).at(<capture-F083>).first()]]],
-[#text("#coherence/combos/bands")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F084>)[#context [page #counter(page).at(<capture-F084>).first()]]],
-[#text("#coherence/combos/parlays")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F085>)[#context [page #counter(page).at(<capture-F085>).first()]]],
-[#text("#coherence/combos/inputs")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F086>)[#context [page #counter(page).at(<capture-F086>).first()]]],
-[#text("#coherence/combos/legs")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F087>)[#context [page #counter(page).at(<capture-F087>).first()]]],
-[#text("#coherence/combos/bounds")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F088>)[#context [page #counter(page).at(<capture-F088>).first()]]],
-[#text("#coherence/index/series")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F089>)[#context [page #counter(page).at(<capture-F089>).first()]]],
-[#text("#coherence/index/families")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F090>)[#context [page #counter(page).at(<capture-F090>).first()]]],
-[#text("#coherence/calibration/score")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F091>)[#context [page #counter(page).at(<capture-F091>).first()]]],
-[#text("#coherence/calibration/decomposition")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F092>)[#context [page #counter(page).at(<capture-F092>).first()]]],
-[#text("#coherence/calibration/components")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F093>)[#context [page #counter(page).at(<capture-F093>).first()]]],
-[#text("#coherence/calibration/measures")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F094>)[#context [page #counter(page).at(<capture-F094>).first()]]],
-[#text("#coherence/calibration/reliability")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F095>)[#context [page #counter(page).at(<capture-F095>).first()]]],
-[#text("#coherence/calibration/bands")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F096>)[#context [page #counter(page).at(<capture-F096>).first()]]],
-[#text("#coherence/corpus/composition")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F097>)[#context [page #counter(page).at(<capture-F097>).first()]]],
-[#text("#coherence/corpus/trend")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F098>)[#context [page #counter(page).at(<capture-F098>).first()]]],
-[#text("#coherence/lessons/prices")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F099>)[#context [page #counter(page).at(<capture-F099>).first()]]],
-[#text("#coherence/lessons/structure")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F100>)[#context [page #counter(page).at(<capture-F100>).first()]]],
-[#text("#coherence/lessons/bounds")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F101>)[#context [page #counter(page).at(<capture-F101>).first()]]],
-[#text("#coherence/lessons/record")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F102>)[#context [page #counter(page).at(<capture-F102>).first()]]],
-[#text("#coherence/lessons/coverage")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F103>)[#context [page #counter(page).at(<capture-F103>).first()]]],
-[#text("#coherence/lessons/states")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F104>)[#context [page #counter(page).at(<capture-F104>).first()]]],
-[#text("#diffusion/arm/absorption")], [#text("captured")], [#text("rendered")], [#link(<capture-F105>)[#context [page #counter(page).at(<capture-F105>).first()]]],
-[#text("#diffusion/arm/floor")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F106>)[#context [page #counter(page).at(<capture-F106>).first()]]],
-[#text("#diffusion/arm/clocks")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F107>)[#context [page #counter(page).at(<capture-F107>).first()]]],
-[#text("#diffusion/meetings/table")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F108>)[#context [page #counter(page).at(<capture-F108>).first()]]],
-[#text("#diffusion/meetings/calendar")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F109>)[#context [page #counter(page).at(<capture-F109>).first()]]],
-[#text("#diffusion/meetings/mechanism")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F110>)[#context [page #counter(page).at(<capture-F110>).first()]]],
-[#text("#diffusion/episodes/survival")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F111>)[#context [page #counter(page).at(<capture-F111>).first()]]],
-[#text("#diffusion/episodes/episodes")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F112>)[#context [page #counter(page).at(<capture-F112>).first()]]],
+[#text("#research/summary/setup")], [#text("captured")], [#text("selection verified")], [#link(<capture-F049>)[#context [page #counter(page).at(<capture-F049>).first()]]],
+[#text("#markets/universe/baskets")], [#text("captured")], [#text("selection verified")], [#link(<capture-F050>)[#context [page #counter(page).at(<capture-F050>).first()]]],
+[#text("#markets/universe/positions")], [#text("captured")], [#text("selection verified")], [#link(<capture-F051>)[#context [page #counter(page).at(<capture-F051>).first()]]],
+[#text("#markets/universe/families")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F052>)[#context [page #counter(page).at(<capture-F052>).first()]]],
+[#text("#markets/settlement/reading")], [#text("captured")], [#text("selection verified")], [#link(<capture-F053>)[#context [page #counter(page).at(<capture-F053>).first()]]],
+[#text("#markets/settlement/formation")], [#text("captured")], [#text("selection verified")], [#link(<capture-F054>)[#context [page #counter(page).at(<capture-F054>).first()]]],
+[#text("#markets/settlement/pending")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F055>)[#context [page #counter(page).at(<capture-F055>).first()]]],
+[#text("#markets/books/ladder")], [#text("captured")], [#text("selection verified")], [#link(<capture-F056>)[#context [page #counter(page).at(<capture-F056>).first()]]],
+[#text("#markets/books/identity")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F057>)[#context [page #counter(page).at(<capture-F057>).first()]]],
+[#text("#markets/books/history")], [#text("captured")], [#text("selection verified")], [#link(<capture-F058>)[#context [page #counter(page).at(<capture-F058>).first()]]],
+[#text("#markets/dispersion/quotes")], [#text("captured")], [#text("selection verified; sign-in required")], [#link(<capture-F059>)[#context [page #counter(page).at(<capture-F059>).first()]]],
+[#text("#markets/dispersion/channel")], [#text("shared blocked state")], [#text("selection verified; sign-in required")], [#link(<capture-F060>)[#context [page #counter(page).at(<capture-F060>).first()]]],
+[#text("#markets/lattice/survival")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F061>)[#context [page #counter(page).at(<capture-F061>).first()]]],
+[#text("#markets/lattice/mass")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F062>)[#context [page #counter(page).at(<capture-F062>).first()]]],
+[#text("#markets/lattice/moments")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F063>)[#context [page #counter(page).at(<capture-F063>).first()]]],
+[#text("#markets/lattice/support")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F064>)[#context [page #counter(page).at(<capture-F064>).first()]]],
+[#text("#markets/stake/plan")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F065>)[#context [page #counter(page).at(<capture-F065>).first()]]],
+[#text("#markets/stake/capital")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F066>)[#context [page #counter(page).at(<capture-F066>).first()]]],
+[#text("#markets/stake/method")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F067>)[#context [page #counter(page).at(<capture-F067>).first()]]],
+[#text("#markets/stake/family")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F068>)[#context [page #counter(page).at(<capture-F068>).first()]]],
+[#text("#markets/fees/example")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F069>)[#context [page #counter(page).at(<capture-F069>).first()]]],
+[#text("#markets/fees/shape")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F070>)[#context [page #counter(page).at(<capture-F070>).first()]]],
+[#text("#markets/fees/comparison")], [#text("captured")], [#text("selection verified")], [#link(<capture-F071>)[#context [page #counter(page).at(<capture-F071>).first()]]],
+[#text("#markets/fees/table")], [#text("captured")], [#text("selection verified")], [#link(<capture-F072>)[#context [page #counter(page).at(<capture-F072>).first()]]],
+[#text("#markets/shell/layout")], [#text("captured")], [#text("selection verified")], [#link(<capture-F073>)[#context [page #counter(page).at(<capture-F073>).first()]]],
+[#text("#markets/shell/route")], [#text("captured")], [#text("selection verified")], [#link(<capture-F074>)[#context [page #counter(page).at(<capture-F074>).first()]]],
+[#text("#markets/shell/tree")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F075>)[#context [page #counter(page).at(<capture-F075>).first()]]],
+[#text("#coherence/certificate/verdict")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F076>)[#context [page #counter(page).at(<capture-F076>).first()]]],
+[#text("#coherence/certificate/proof")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F077>)[#context [page #counter(page).at(<capture-F077>).first()]]],
+[#text("#coherence/certificate/checks")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F078>)[#context [page #counter(page).at(<capture-F078>).first()]]],
+[#text("#coherence/certificate/prices")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F079>)[#context [page #counter(page).at(<capture-F079>).first()]]],
+[#text("#coherence/certificate/sizes")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F080>)[#context [page #counter(page).at(<capture-F080>).first()]]],
+[#text("#coherence/portfolio/cover")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F081>)[#context [page #counter(page).at(<capture-F081>).first()]]],
+[#text("#coherence/portfolio/basket")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F082>)[#context [page #counter(page).at(<capture-F082>).first()]]],
+[#text("#coherence/portfolio/size")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F083>)[#context [page #counter(page).at(<capture-F083>).first()]]],
+[#text("#coherence/combos/bands")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F084>)[#context [page #counter(page).at(<capture-F084>).first()]]],
+[#text("#coherence/combos/parlays")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F085>)[#context [page #counter(page).at(<capture-F085>).first()]]],
+[#text("#coherence/combos/inputs")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F086>)[#context [page #counter(page).at(<capture-F086>).first()]]],
+[#text("#coherence/combos/legs")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F087>)[#context [page #counter(page).at(<capture-F087>).first()]]],
+[#text("#coherence/combos/bounds")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F088>)[#context [page #counter(page).at(<capture-F088>).first()]]],
+[#text("#coherence/index/series")], [#text("captured")], [#text("selection verified")], [#link(<capture-F089>)[#context [page #counter(page).at(<capture-F089>).first()]]],
+[#text("#coherence/index/families")], [#text("captured")], [#text("selection verified")], [#link(<capture-F090>)[#context [page #counter(page).at(<capture-F090>).first()]]],
+[#text("#coherence/calibration/score")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F091>)[#context [page #counter(page).at(<capture-F091>).first()]]],
+[#text("#coherence/calibration/decomposition")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F092>)[#context [page #counter(page).at(<capture-F092>).first()]]],
+[#text("#coherence/calibration/components")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F093>)[#context [page #counter(page).at(<capture-F093>).first()]]],
+[#text("#coherence/calibration/measures")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F094>)[#context [page #counter(page).at(<capture-F094>).first()]]],
+[#text("#coherence/calibration/reliability")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F095>)[#context [page #counter(page).at(<capture-F095>).first()]]],
+[#text("#coherence/calibration/bands")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F096>)[#context [page #counter(page).at(<capture-F096>).first()]]],
+[#text("#coherence/corpus/composition")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F097>)[#context [page #counter(page).at(<capture-F097>).first()]]],
+[#text("#coherence/corpus/trend")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F098>)[#context [page #counter(page).at(<capture-F098>).first()]]],
+[#text("#coherence/lessons/prices")], [#text("captured")], [#text("selection verified")], [#link(<capture-F099>)[#context [page #counter(page).at(<capture-F099>).first()]]],
+[#text("#coherence/lessons/structure")], [#text("captured")], [#text("selection verified")], [#link(<capture-F100>)[#context [page #counter(page).at(<capture-F100>).first()]]],
+[#text("#coherence/lessons/bounds")], [#text("captured")], [#text("selection verified")], [#link(<capture-F101>)[#context [page #counter(page).at(<capture-F101>).first()]]],
+[#text("#coherence/lessons/record")], [#text("captured")], [#text("selection verified")], [#link(<capture-F102>)[#context [page #counter(page).at(<capture-F102>).first()]]],
+[#text("#coherence/lessons/coverage")], [#text("captured")], [#text("selection verified")], [#link(<capture-F103>)[#context [page #counter(page).at(<capture-F103>).first()]]],
+[#text("#coherence/lessons/states")], [#text("captured")], [#text("selection verified")], [#link(<capture-F104>)[#context [page #counter(page).at(<capture-F104>).first()]]],
+[#text("#diffusion/arm/absorption")], [#text("captured")], [#text("selection verified")], [#link(<capture-F105>)[#context [page #counter(page).at(<capture-F105>).first()]]],
+[#text("#diffusion/arm/floor")], [#text("captured")], [#text("selection verified")], [#link(<capture-F106>)[#context [page #counter(page).at(<capture-F106>).first()]]],
+[#text("#diffusion/arm/clocks")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F107>)[#context [page #counter(page).at(<capture-F107>).first()]]],
+[#text("#diffusion/meetings/table")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F108>)[#context [page #counter(page).at(<capture-F108>).first()]]],
+[#text("#diffusion/meetings/calendar")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F109>)[#context [page #counter(page).at(<capture-F109>).first()]]],
+[#text("#diffusion/meetings/mechanism")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F110>)[#context [page #counter(page).at(<capture-F110>).first()]]],
+[#text("#diffusion/episodes/survival")], [#text("captured")], [#text("selection verified")], [#link(<capture-F111>)[#context [page #counter(page).at(<capture-F111>).first()]]],
+[#text("#diffusion/episodes/episodes")], [#text("captured")], [#text("selection verified; gateway unavailable")], [#link(<capture-F112>)[#context [page #counter(page).at(<capture-F112>).first()]]],
 [#text("#diffusion/model/measurement")], [#text("captured")], [#text("rendered")], [#link(<capture-F113>)[#context [page #counter(page).at(<capture-F113>).first()]]],
 [#text("#diffusion/instrument/instrument")], [#text("captured")], [#text("rendered")], [#link(<capture-F114>)[#context [page #counter(page).at(<capture-F114>).first()]]],
-[#text("#diffusion/sandbox/halflife")], [#text("captured")], [#text("rendered")], [#link(<capture-F115>)[#context [page #counter(page).at(<capture-F115>).first()]]],
-[#text("#diffusion/sandbox/simulator")], [#text("captured")], [#text("rendered")], [#link(<capture-F116>)[#context [page #counter(page).at(<capture-F116>).first()]]],
-[#text("#diffusion/sandbox/spectrum")], [#text("captured")], [#text("rendered")], [#link(<capture-F117>)[#context [page #counter(page).at(<capture-F117>).first()]]],
-[#text("#diffusion/findings/plot")], [#text("captured")], [#text("rendered")], [#link(<capture-F118>)[#context [page #counter(page).at(<capture-F118>).first()]]],
-[#text("#diffusion/findings/table")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F119>)[#context [page #counter(page).at(<capture-F119>).first()]]],
-[#text("#diffusion/findings/instrument")], [#text("captured")], [#text("rendered; gateway unavailable")], [#link(<capture-F120>)[#context [page #counter(page).at(<capture-F120>).first()]]],
+[#text("#diffusion/sandbox/halflife")], [#text("captured")], [#text("selection verified")], [#link(<capture-F115>)[#context [page #counter(page).at(<capture-F115>).first()]]],
+[#text("#diffusion/sandbox/simulator")], [#text("captured")], [#text("selection verified")], [#link(<capture-F116>)[#context [page #counter(page).at(<capture-F116>).first()]]],
+[#text("#diffusion/sandbox/spectrum")], [#text("captured")], [#text("selection verified")], [#link(<capture-F117>)[#context [page #counter(page).at(<capture-F117>).first()]]],
+[#text("#diffusion/findings/plot")], [#text("captured")], [#text("selection verified")], [#link(<capture-F118>)[#context [page #counter(page).at(<capture-F118>).first()]]],
+[#text("#diffusion/findings/table")], [#text("captured")], [#text("selection verified")], [#link(<capture-F119>)[#context [page #counter(page).at(<capture-F119>).first()]]],
+[#text("#diffusion/findings/instrument")], [#text("captured")], [#text("selection verified")], [#link(<capture-F120>)[#context [page #counter(page).at(<capture-F120>).first()]]],
 )
 #set text(size: 9.8pt)
 #heading(level: 3)[#text("Internal subtabs without their own URL")]
@@ -425,7 +427,7 @@
 
 #text("The attached interaction-matrix.json and interaction-matrix.csv contain one row for every source control, event-listener registration, registered-route check, observed runtime control and executed audit action. Stable C, L, N, R and A identifiers distinguish those populations. Each row carries its scope, status and evidence reference; untested controls are explicitly untested, not silently counted as passed.")
 
-#text("Inventory counts: 964 source control, 49 event listener, 120 route navigation, 15 executed interaction, 5230 runtime control.")
+#text("Inventory counts: 964 source control, 49 event listener, 120 route navigation, 75 executed interaction, 5230 runtime control.")
 
 #heading(level: 3)[#text("Executed audit actions and blockers")]
 
@@ -445,6 +447,66 @@
 [#text("A013")], [#text("#research/summary/setup / Adjustments subtab")], [#text("passed")], [#text("Selected state asserted after activation; screenshot retains the actual data availability.")],
 [#text("A014")], [#text("#live/activity / Blotter view / Active")], [#text("passed")], [#text("Selected state asserted after activation; screenshot retains the actual data availability.")],
 [#text("A015")], [#text("#live/activity / Blotter view / Cancelled & rejected")], [#text("passed")], [#text("Selected state asserted after activation; screenshot retains the actual data availability.")],
+[#text("H001")], [#text("#research/summary/setup / Setup / Core parameters")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H002")], [#text("#research/summary/setup / Setup / Adjustments")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H003")], [#text("#research/attribution / Attribution view / Explain")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H004")], [#text("#research/attribution / Attribution view / Robustness")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H005")], [#text("#research/parameters / Surface colouring / Neighbourhood")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H006")], [#text("#research/parameters / Surface colouring / Sharpe")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H007")], [#text("#live/routing / Routing view / Routing")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H008")], [#text("#live/routing / Routing view / TCA")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H009")], [#text("#live/quality / Fill quality view / Cost")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H010")], [#text("#live/quality / Fill quality view / Where")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H011")], [#text("#live/activity / Activity view / Blotter")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H012")], [#text("#live/activity / Activity view / Decision tape")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H013")], [#text("#live/activity / Activity view / Alerts & risk events")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H014")], [#text("#live/activity / Blotter view / Fills")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H015")], [#text("#live/activity / Blotter view / Active")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H016")], [#text("#live/activity / Blotter view / Cancelled & rejected")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H017")], [#text("#portfolio/overview / Overview view / Standing")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H018")], [#text("#portfolio/overview / Overview view / Book")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H019")], [#text("#portfolio/positions / Positions view / Holdings")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H020")], [#text("#portfolio/positions / Positions view / Shape")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H021")], [#text("#portfolio/positions / Positions view / Exit")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H022")], [#text("#portfolio/allocation / Allocation view / Mix")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H023")], [#text("#portfolio/allocation / Allocation view / Targets")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H024")], [#text("#portfolio/allocation / Allocation view / Composition")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H025")], [#text("#portfolio/performance / Performance view / Flow, lifetime")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H026")], [#text("#portfolio/performance / Performance view / Trend, this session")], [#text("blocked")], [#text("locator.waitFor: Timeout 10000ms exceeded.")],
+[#text("H027")], [#text("#data/overview / Trust evidence view / Verdict")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H028")], [#text("#data/overview / Trust evidence view / Response")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H029")], [#text("#data/overview / Trust evidence view / Composition")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H030")], [#text("#data/feeds / Feeds and contracts view / Freshness")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H031")], [#text("#data/feeds / Feeds and contracts view / Contracts")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H032")], [#text("#data/lineage / Inspector view / REST pipeline")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H033")], [#text("#data/lineage / Inspector view / WebSocket frames")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H034")], [#text("#data/providers / Providers and capacity view / Routing")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H035")], [#text("#data/providers / Providers and capacity view / Budget")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H036")], [#text("#reliability/planes / Dependency view / Map")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H037")], [#text("#reliability/planes / Dependency view / Live dependency DAG")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H038")], [#text("#reliability/planes / Dependency view / Providers")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H039")], [#text("#reliability/planes / Dependency view / Platform")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H040")], [#text("#reliability/planes / Dependency view / Latency")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H041")], [#text("#reliability/controls / Remediation view / Mutations")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H042")], [#text("#reliability/controls / Remediation view / Scope")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H043")], [#text("#reliability/controls / Remediation view / Session")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H044")], [#text("#reliability/controls / Remediation view / Recovery")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H045")], [#text("#reliability/controls / Remediation view / History")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H046")], [#text("#developer/quality / CI / CD view / Pipeline")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H047")], [#text("#developer/quality / CI / CD view / Verification")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H048")], [#text("#developer/apis / API and schema view / Contracts")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H049")], [#text("#developer/apis / API and schema view / Routes")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H050")], [#text("#developer/apis / API and schema view / Numerics")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H051")], [#text("#portfolio/overview / Overview view / Standing")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H052")], [#text("#portfolio/overview / Overview view / Book")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H053")], [#text("#portfolio/positions / Positions view / Holdings")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H054")], [#text("#portfolio/positions / Positions view / Shape")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H055")], [#text("#portfolio/positions / Positions view / Exit")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H056")], [#text("#portfolio/allocation / Allocation view / Mix")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H057")], [#text("#portfolio/allocation / Allocation view / Targets")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H058")], [#text("#portfolio/allocation / Allocation view / Composition")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H059")], [#text("#portfolio/performance / Performance view / Flow, lifetime")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
+[#text("H060")], [#text("#portfolio/performance / Performance view / Trend, this session")], [#text("passed")], [#text("Selected presentation control asserted true; no backend-success inference.")],
 )
 
 #heading(level: 1)[#text("AlphaEngine Features")]
@@ -637,20 +699,13 @@
 #heading(level: 2)[#text("005  Research / Summary / setup")]
 
 #metadata("F049") <capture-F049>
-#text(size: 8pt, "#research/summary/setup | Verdict & performance | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#research/summary/setup | Verdict & performance | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:21.029Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:05.565Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-049-research-summary-setup.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "005  Research / Summary / setup - continued")
+#image("../screenshots/audit-h-pane-01.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#research/summary/setup | Verdict & performance | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:21.029Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-049-research-summary-setup-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "005  Research / Summary / setup - controls")
@@ -697,11 +752,13 @@
 #heading(level: 2)[#text("006  Research / Summary - Adjustments")]
 
 #metadata("G012") <capture-G012>
-#text(size: 8pt, "#research/summary/setup | Verdict & performance | Vercel production; Revision G audit; gateway unavailable; presentation-only subtab; no parameter change or run")
+#text(size: 8pt, "#research/summary/setup | Verdict & performance | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T12:18:14.727Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:07.416Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/audit-g-setup-adjustments.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-pane-02.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "006  Research / Summary - Adjustments - controls")
@@ -736,20 +793,13 @@
 #heading(level: 2)[#text("007  Research / Parameters")]
 
 #metadata("F005") <capture-F005>
-#text(size: 8pt, "#research/parameters | Stability & ranking | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#research/parameters | Stability & ranking | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:51:27.948Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:13.093Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-005-research-parameters.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "007  Research / Parameters - continued")
+#image("../screenshots/audit-h-pane-05.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#research/parameters | Stability & ranking | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:51:27.948Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-005-research-parameters-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "007  Research / Parameters - controls")
@@ -859,20 +909,13 @@
 #heading(level: 2)[#text("008  Research / Parameters - Surface colouring - Sharpe")]
 
 #metadata("G005") <capture-G005>
-#text(size: 8pt, "#research/parameters | Stability & ranking | Vercel production; Revision G audit; gateway unavailable; public-provider/browser research")
+#text(size: 8pt, "#research/parameters | Stability & ranking | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T12:15:20.490Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:14.973Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/audit-g-surface-sharpe.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "008  Research / Parameters - Surface colouring - Sharpe - continued")
+#image("../screenshots/audit-h-pane-06.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#research/parameters | Stability & ranking | Vercel production; Revision G audit; gateway unavailable; public-provider/browser research")
-
-#text(size: 8pt, "Captured 2026-10-05T12:15:20.490Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/audit-g-surface-sharpe-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "008  Research / Parameters - Surface colouring - Sharpe - controls")
@@ -1018,20 +1061,13 @@
 #heading(level: 2)[#text("010  Research / Attribution")]
 
 #metadata("F007") <capture-F007>
-#text(size: 8pt, "#research/attribution | Factors, regime & tail | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#research/attribution | Factors, regime & tail | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:51:32.230Z; Limitations: no benchmark")
+#text(size: 8pt, "Captured 2026-10-05T12:41:09.339Z; Limitations: no benchmark")
 
-#image("../screenshots/live-007-research-attribution.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "010  Research / Attribution - continued")
+#image("../screenshots/audit-h-pane-03.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#research/attribution | Factors, regime & tail | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:51:32.230Z; Limitations: no benchmark")
-
-#image("../screenshots/live-007-research-attribution-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "010  Research / Attribution - controls")
@@ -1070,20 +1106,13 @@
 #heading(level: 2)[#text("011  Research / Attribution - Attribution view - Robustness")]
 
 #metadata("G004") <capture-G004>
-#text(size: 8pt, "#research/attribution | Factors, regime & tail | Vercel production; Revision G audit; gateway unavailable; public-provider/browser research")
+#text(size: 8pt, "#research/attribution | Factors, regime & tail | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T12:15:16.229Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:11.213Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/audit-g-attribution-robustness.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "011  Research / Attribution - Attribution view - Robustness - continued")
+#image("../screenshots/audit-h-pane-04.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#research/attribution | Factors, regime & tail | Vercel production; Revision G audit; gateway unavailable; public-provider/browser research")
-
-#text(size: 8pt, "Captured 2026-10-05T12:15:16.229Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/audit-g-attribution-robustness-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "011  Research / Attribution - Attribution view - Robustness - controls")
@@ -1529,20 +1558,13 @@
 #heading(level: 2)[#text("020  Execution / Routing & TCA")]
 
 #metadata("F015") <capture-F015>
-#text(size: 8pt, "#live/routing | Cost & venue allocation | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#live/routing | Cost & venue allocation | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:51:48.606Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:16.865Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-015-live-routing.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "020  Execution / Routing & TCA - continued")
+#image("../screenshots/audit-h-pane-07.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#live/routing | Cost & venue allocation | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:51:48.606Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-015-live-routing-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "020  Execution / Routing & TCA - controls")
@@ -1599,20 +1621,13 @@
 #heading(level: 2)[#text("021  Execution / Routing & TCA - Routing view - TCA")]
 
 #metadata("G006") <capture-G006>
-#text(size: 8pt, "#live/routing | Cost & venue allocation | Vercel production; Revision G audit; gateway unavailable; backend-dependent data may be unavailable")
+#text(size: 8pt, "#live/routing | Cost & venue allocation | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T12:15:24.724Z; Limitations: gateway unavailable")
+#text(size: 8pt, "Captured 2026-10-05T12:41:18.736Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/audit-g-routing-tca.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "021  Execution / Routing & TCA - Routing view - TCA - continued")
+#image("../screenshots/audit-h-pane-08.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#live/routing | Cost & venue allocation | Vercel production; Revision G audit; gateway unavailable; backend-dependent data may be unavailable")
-
-#text(size: 8pt, "Captured 2026-10-05T12:15:24.724Z; Limitations: gateway unavailable")
-
-#image("../screenshots/audit-g-routing-tca-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "021  Execution / Routing & TCA - Routing view - TCA - controls")
@@ -1647,15 +1662,6 @@
 #heading(level: 2)[#text("022  Execution / Fill quality")]
 
 #metadata("F016") <capture-F016>
-#text(size: 8pt, "#live/quality | Realised cost vs model | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:51:50.672Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-016-live-quality.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "022  Execution / Fill quality - continued")
-
 #text(size: 8pt, "#live/quality | Realised cost vs model | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T08:51:50.672Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -1832,20 +1838,13 @@
 #heading(level: 2)[#text("025  Execution / Blotter - Activity view - Decision tape")]
 
 #metadata("G008") <capture-G008>
-#text(size: 8pt, "#live/activity | Orders, tape & alerts | Vercel production; Revision G audit; gateway unavailable; backend-dependent data may be unavailable")
+#text(size: 8pt, "#live/activity | Orders, tape & alerts | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T12:15:32.937Z; Limitations: gateway unavailable")
+#text(size: 8pt, "Captured 2026-10-05T12:41:26.113Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/audit-g-activity-decision-tape.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "025  Execution / Blotter - Activity view - Decision tape - continued")
+#image("../screenshots/audit-h-pane-12.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#live/activity | Orders, tape & alerts | Vercel production; Revision G audit; gateway unavailable; backend-dependent data may be unavailable")
-
-#text(size: 8pt, "Captured 2026-10-05T12:15:32.937Z; Limitations: gateway unavailable")
-
-#image("../screenshots/audit-g-activity-decision-tape-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "025  Execution / Blotter - Activity view - Decision tape - controls")
@@ -1960,30 +1959,25 @@
 #heading(level: 2)[#text("030  Portfolio / Overview - sandbox default")]
 
 #metadata("F164") <capture-F164>
-#text(size: 8pt, "#portfolio/overview | Alerts, headroom & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/overview | Alerts, headroom & exposure | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:13.009Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:32.794Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-044-portfolio-overview-sandbox-default.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-sandbox-pane-01.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("031  Portfolio / Overview - Book")]
 
 #metadata("F165") <capture-F165>
-#text(size: 8pt, "#portfolio/overview | Alerts, headroom & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/overview | Alerts, headroom & exposure | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:15.727Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:37.655Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-045-portfolio-overview-Book.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "031  Portfolio / Overview - Book - continued")
+#image("../screenshots/audit-h-sandbox-pane-02.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#portfolio/overview | Alerts, headroom & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
-
-#text(size: 8pt, "Captured 2026-10-05T09:03:15.727Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-045-portfolio-overview-Book-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "031  Portfolio / Overview - Book - controls")
@@ -2102,11 +2096,13 @@
 #heading(level: 2)[#text("035  Portfolio / Positions - sandbox default")]
 
 #metadata("F168") <capture-F168>
-#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:23.879Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:42.511Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-048-portfolio-positions-sandbox-default.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-sandbox-pane-03.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "035  Portfolio / Positions - sandbox default - controls")
@@ -2121,20 +2117,13 @@
 #heading(level: 2)[#text("036  Portfolio / Positions - Shape")]
 
 #metadata("F169") <capture-F169>
-#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:26.642Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:47.403Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-049-portfolio-positions-Shape.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "036  Portfolio / Positions - Shape - continued")
+#image("../screenshots/audit-h-sandbox-pane-04.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
-
-#text(size: 8pt, "Captured 2026-10-05T09:03:26.642Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-049-portfolio-positions-Shape-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "036  Portfolio / Positions - Shape - controls")
@@ -2152,20 +2141,13 @@
 #heading(level: 2)[#text("037  Portfolio / Positions - Exit")]
 
 #metadata("F170") <capture-F170>
-#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:29.396Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:52.315Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-050-portfolio-positions-Exit.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "037  Portfolio / Positions - Exit - continued")
+#image("../screenshots/audit-h-sandbox-pane-05.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#portfolio/positions | Holdings & exposure | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
-
-#text(size: 8pt, "Captured 2026-10-05T09:03:29.396Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-050-portfolio-positions-Exit-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "037  Portfolio / Positions - Exit - controls")
@@ -2228,30 +2210,25 @@
 #heading(level: 2)[#text("039  Portfolio / Allocation - sandbox default")]
 
 #metadata("F172") <capture-F172>
-#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:34.748Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:41:57.188Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-052-portfolio-allocation-sandbox-default.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-sandbox-pane-06.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("040  Portfolio / Allocation - Targets")]
 
 #metadata("F173") <capture-F173>
-#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:37.485Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:42:02.065Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-053-portfolio-allocation-Targets.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "040  Portfolio / Allocation - Targets - continued")
+#image("../screenshots/audit-h-sandbox-pane-07.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
-
-#text(size: 8pt, "Captured 2026-10-05T09:03:37.485Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-053-portfolio-allocation-Targets-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "040  Portfolio / Allocation - Targets - controls")
@@ -2272,11 +2249,13 @@
 #heading(level: 2)[#text("041  Portfolio / Allocation - Composition")]
 
 #metadata("F174") <capture-F174>
-#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/allocation | Targets & rebalancing | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:40.097Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:42:06.914Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-054-portfolio-allocation-Composition.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-sandbox-pane-08.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "041  Portfolio / Allocation - Composition - controls")
@@ -2337,30 +2316,25 @@
 #heading(level: 2)[#text("043  Portfolio / Performance - sandbox default")]
 
 #metadata("F176") <capture-F176>
-#text(size: 8pt, "#portfolio/performance | Attribution & costs | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/performance | Attribution & costs | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:45.585Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:42:11.813Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-056-portfolio-performance-sandbox-default.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "043  Portfolio / Performance - sandbox default - continued")
+#image("../screenshots/audit-h-sandbox-pane-09.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#portfolio/performance | Attribution & costs | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
-
-#text(size: 8pt, "Captured 2026-10-05T09:03:45.585Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-056-portfolio-performance-sandbox-default-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("044  Portfolio / Performance - Trend, this session")]
 
 #metadata("F177") <capture-F177>
-#text(size: 8pt, "#portfolio/performance | Attribution & costs | Deployed Vercel UI; explicitly selected Sandbox; Oracle calculations live")
+#text(size: 8pt, "#portfolio/performance | Attribution & costs | Vercel production; explicitly selected built-in generated Sandbox book; not live holdings; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:48.207Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:42:16.669Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-057-portfolio-performance-Trend-this-session.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-sandbox-pane-10.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "044  Portfolio / Performance - Trend, this session - controls")
@@ -2904,15 +2878,6 @@
 
 #image("../screenshots/live-029-risk-scenarios-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "064  Risk / Stress tests - continued")
-
-#text(size: 8pt, "#risk/scenarios | Forward shock damage | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:42:41.282Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-029-risk-scenarios-main-2.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "064  Risk / Stress tests - controls")
 
@@ -3121,20 +3086,13 @@
 #heading(level: 2)[#text("072  Data / Trust Summary")]
 
 #metadata("F031") <capture-F031>
-#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:42:45.165Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:15.557Z; Limitations: gateway unavailable")
 
-#image("../screenshots/live-031-data-overview.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "072  Data / Trust Summary - continued")
+#image("../screenshots/audit-h-pane-27.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:42:45.165Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-031-data-overview-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "072  Data / Trust Summary - controls")
@@ -3169,20 +3127,13 @@
 #heading(level: 2)[#text("073  Data / Trust Summary - Response")]
 
 #metadata("F121") <capture-F121>
-#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:01:25.024Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:17.417Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-001-data-overview-Response.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "073  Data / Trust Summary - Response - continued")
+#image("../screenshots/audit-h-pane-28.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:01:25.024Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-001-data-overview-Response-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "073  Data / Trust Summary - Response - controls")
@@ -3200,11 +3151,13 @@
 #heading(level: 2)[#text("074  Data / Trust Summary - Composition")]
 
 #metadata("F122") <capture-F122>
-#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/overview | Verdict, composition & boundary | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:01:27.632Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:19.264Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-002-data-overview-Composition.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-pane-29.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "074  Data / Trust Summary - Composition - controls")
@@ -3257,20 +3210,13 @@
 #heading(level: 2)[#text("076  Data / Feeds & Contracts - Contracts")]
 
 #metadata("F124") <capture-F124>
-#text(size: 8pt, "#data/feeds | Freshness, validation & next action | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/feeds | Freshness, validation & next action | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:01:33.212Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:22.970Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-004-data-feeds-Contracts.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "076  Data / Feeds & Contracts - Contracts - continued")
+#image("../screenshots/audit-h-pane-31.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#data/feeds | Freshness, validation & next action | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:01:33.212Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-004-data-feeds-Contracts-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "076  Data / Feeds & Contracts - Contracts - controls")
@@ -3291,15 +3237,6 @@
 #heading(level: 2)[#text("077  Data / Quality - Reconciliation result")]
 
 #metadata("F033") <capture-F033>
-#text(size: 8pt, "#data/quality | Reconcile, contracts & ledger | Vercel production; Revision G audit; gateway unavailable; read-only provider reconciliation; actual response retained")
-
-#text(size: 8pt, "Captured 2026-10-05T12:16:18.870Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/audit-g-reconcile.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "077  Data / Quality - Reconciliation result - continued")
-
 #text(size: 8pt, "#data/quality | Reconcile, contracts & ledger | Vercel production; Revision G audit; gateway unavailable; read-only provider reconciliation; actual response retained")
 
 #text(size: 8pt, "Captured 2026-10-05T12:16:18.870Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -3367,29 +3304,22 @@
 #heading(level: 2)[#text("079  Data / Lineage & Payloads")]
 
 #metadata("F035") <capture-F035>
-#text(size: 8pt, "#data/lineage | Trace source, cache & coercion | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/lineage | Trace source, cache & coercion | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:42:52.833Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:51:51.645Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-035-data-lineage.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-split-route-001-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #text(size: 13pt, weight: "bold", "079  Data / Lineage & Payloads - continued")
 
-#text(size: 8pt, "#data/lineage | Trace source, cache & coercion | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/lineage | Trace source, cache & coercion | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:42:52.833Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:51:51.645Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-035-data-lineage-main-1.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "079  Data / Lineage & Payloads - continued")
+#image("../screenshots/audit-h-split-route-001-2.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#data/lineage | Trace source, cache & coercion | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:42:52.833Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-035-data-lineage-main-2.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "079  Data / Lineage & Payloads - controls")
@@ -3616,20 +3546,13 @@
 #heading(level: 2)[#text("084  Data / Providers & Capacity")]
 
 #metadata("F036") <capture-F036>
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/providers | Failover, quota & reserve | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:42:54.912Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:28.606Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-036-data-providers.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "084  Data / Providers & Capacity - continued")
+#image("../screenshots/audit-h-pane-34.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:42:54.912Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-036-data-providers-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "084  Data / Providers & Capacity - controls")
@@ -3671,25 +3594,18 @@
 #heading(level: 2)[#text("085  Data / Providers & Capacity - Budget")]
 
 #metadata("F132") <capture-F132>
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#data/providers | Failover, quota & reserve | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:01:55.632Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:30.449Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-012-data-providers-Budget.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-pane-35.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("086  Data / Providers & Capacity - Equity quotes")]
 
 #metadata("F133") <capture-F133>
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:10.576Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-013-data-providers-Equity-quotes.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "086  Data / Providers & Capacity - Equity quotes - continued")
-
 #text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:10.576Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -3723,30 +3639,12 @@
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:16.068Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-015-data-providers-Equity-bars.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "088  Data / Providers & Capacity - Equity bars - continued")
-
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:16.068Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-extra-015-data-providers-Equity-bars-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("089  Data / Providers & Capacity - Crypto news")]
 
 #metadata("F136") <capture-F136>
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:18.826Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-016-data-providers-Crypto-news.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "089  Data / Providers & Capacity - Crypto news - continued")
-
 #text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:18.826Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -3761,30 +3659,12 @@
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:21.539Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-017-data-providers-Equity-news.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "090  Data / Providers & Capacity - Equity news - continued")
-
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:21.539Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-extra-017-data-providers-Equity-news-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("091  Data / Providers & Capacity - Equity fundamentals")]
 
 #metadata("F138") <capture-F138>
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:24.273Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-018-data-providers-Equity-fundamentals.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "091  Data / Providers & Capacity - Equity fundamentals - continued")
-
 #text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:24.273Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -3799,30 +3679,12 @@
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:27.001Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-019-data-providers-Web-search.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "092  Data / Providers & Capacity - Web search - continued")
-
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:27.001Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-extra-019-data-providers-Web-search-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("093  Data / Providers & Capacity - Web scrape")]
 
 #metadata("F140") <capture-F140>
-#text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:07:29.737Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-020-data-providers-Web-scrape.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "093  Data / Providers & Capacity - Web scrape - continued")
-
 #text(size: 8pt, "#data/providers | Failover, quota & reserve | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T09:07:29.737Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -3938,20 +3800,13 @@
 #heading(level: 2)[#text("096  Reliability / Dependencies")]
 
 #metadata("F039") <capture-F039>
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:00.829Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:32.356Z; Limitations: gateway unavailable")
 
-#image("../screenshots/live-039-reliability-planes.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "096  Reliability / Dependencies - continued")
+#image("../screenshots/audit-h-pane-36.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:00.829Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-039-reliability-planes-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "096  Reliability / Dependencies - controls")
@@ -3989,29 +3844,13 @@
 #heading(level: 2)[#text("097  Reliability / Dependencies - Live dependency DAG")]
 
 #metadata("F143") <capture-F143>
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:02:15.349Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:34.272Z; Limitations: gateway unavailable")
 
-#image("../screenshots/live-extra-023-reliability-planes-Live-dependency-DAG.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "097  Reliability / Dependencies - Live dependency DAG - continued")
+#image("../screenshots/audit-h-pane-37.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:15.349Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-023-reliability-planes-Live-dependency-DAG-main-1.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "097  Reliability / Dependencies - Live dependency DAG - continued")
-
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:15.349Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-023-reliability-planes-Live-dependency-DAG-main-2.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "097  Reliability / Dependencies - Live dependency DAG - controls")
@@ -4026,20 +3865,13 @@
 #heading(level: 2)[#text("098  Reliability / Dependencies - Providers")]
 
 #metadata("F144") <capture-F144>
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:02:18.106Z; Limitations: provider failure")
+#text(size: 8pt, "Captured 2026-10-05T12:43:36.114Z; Limitations: gateway unavailable")
 
-#image("../screenshots/live-extra-024-reliability-planes-Providers.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "098  Reliability / Dependencies - Providers - continued")
+#image("../screenshots/audit-h-pane-38.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:18.106Z; Limitations: provider failure")
-
-#image("../screenshots/live-extra-024-reliability-planes-Providers-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "098  Reliability / Dependencies - Providers - controls")
@@ -4055,20 +3887,13 @@
 #heading(level: 2)[#text("099  Reliability / Dependencies - Platform")]
 
 #metadata("F145") <capture-F145>
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:02:20.870Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:37.950Z; Limitations: gateway unavailable")
 
-#image("../screenshots/live-extra-025-reliability-planes-Platform.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "099  Reliability / Dependencies - Platform - continued")
+#image("../screenshots/audit-h-pane-39.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#reliability/planes | Provider APIs, platform & evidence | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:20.870Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-025-reliability-planes-Platform-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "099  Reliability / Dependencies - Platform - controls")
@@ -4180,15 +4005,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:43:05.005Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-041-reliability-events.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "102  Reliability / Logs & Traces - continued")
-
-#text(size: 8pt, "#reliability/events | Cross-origin event investigation | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:05.005Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-041-reliability-events-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -4251,15 +4067,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T09:02:29.273Z; Limitations: provider failure")
 
-#image("../screenshots/live-extra-028-reliability-events-info.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "103  Reliability / Logs & Traces - info - continued")
-
-#text(size: 8pt, "#reliability/events | Cross-origin event investigation | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:29.273Z; Limitations: provider failure")
-
 #image("../screenshots/live-extra-028-reliability-events-info-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -4287,15 +4094,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T09:02:32.018Z; Limitations: provider failure")
 
-#image("../screenshots/live-extra-029-reliability-events-warn.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "104  Reliability / Logs & Traces - warn - continued")
-
-#text(size: 8pt, "#reliability/events | Cross-origin event investigation | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:32.018Z; Limitations: provider failure")
-
 #image("../screenshots/live-extra-029-reliability-events-warn-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
@@ -4312,29 +4110,22 @@
 #heading(level: 2)[#text("106  Reliability / Remediation")]
 
 #metadata("F042") <capture-F042>
-#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:07.353Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:51:53.610Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-042-reliability-controls.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-split-route-002-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #text(size: 13pt, weight: "bold", "106  Reliability / Remediation - continued")
 
-#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:07.353Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:51:53.610Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-042-reliability-controls-main-1.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "106  Reliability / Remediation - continued")
+#image("../screenshots/audit-h-split-route-002-2.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:07.353Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-042-reliability-controls-main-2.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "106  Reliability / Remediation - controls")
@@ -4384,11 +4175,13 @@
 #heading(level: 2)[#text("107  Reliability / Remediation - Scope")]
 
 #metadata("F151") <capture-F151>
-#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:02:37.233Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:43.481Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-031-reliability-controls-Scope.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-pane-42.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("108  Reliability / Remediation - Session")]
@@ -4418,11 +4211,13 @@
 #heading(level: 2)[#text("109  Reliability / Remediation - Recovery")]
 
 #metadata("F153") <capture-F153>
-#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#reliability/controls | Guarded, scoped operator actions | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:02:42.447Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:47.124Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-033-reliability-controls-Recovery.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-pane-44.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "109  Reliability / Remediation - Recovery - controls")
@@ -4534,11 +4329,13 @@
 #heading(level: 2)[#text("113  Developer / CI / CD")]
 
 #metadata("F045") <capture-F045>
-#text(size: 8pt, "#developer/quality | Pipelines, test gates & artifacts | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#developer/quality | Pipelines, test gates & artifacts | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:12.944Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:50.801Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-045-developer-quality.png", width: 100%, height: 230mm, fit: "contain")
+#image("../screenshots/audit-h-pane-46.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
+
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "113  Developer / CI / CD - controls")
@@ -4568,20 +4365,13 @@
 #heading(level: 2)[#text("114  Developer / CI / CD - Verification")]
 
 #metadata("F158") <capture-F158>
-#text(size: 8pt, "#developer/quality | Pipelines, test gates & artifacts | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#developer/quality | Pipelines, test gates & artifacts | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:02:56.625Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:52.674Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-038-developer-quality-Verification.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "114  Developer / CI / CD - Verification - continued")
+#image("../screenshots/audit-h-pane-47.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#developer/quality | Pipelines, test gates & artifacts | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:02:56.625Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-038-developer-quality-Verification-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "114  Developer / CI / CD - Verification - controls")
@@ -4602,20 +4392,13 @@
 #heading(level: 2)[#text("115  Developer / API & Schema")]
 
 #metadata("F046") <capture-F046>
-#text(size: 8pt, "#developer/apis | Routes, payloads & contract drift | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#developer/apis | Routes, payloads & contract drift | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:15.035Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:54.584Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-046-developer-apis.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "115  Developer / API & Schema - continued")
+#image("../screenshots/audit-h-pane-48.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#developer/apis | Routes, payloads & contract drift | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:15.035Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-046-developer-apis-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "115  Developer / API & Schema - controls")
@@ -4651,20 +4434,13 @@
 #heading(level: 2)[#text("116  Developer / API & Schema - Routes")]
 
 #metadata("F160") <capture-F160>
-#text(size: 8pt, "#developer/apis | Routes, payloads & contract drift | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text(size: 8pt, "#developer/apis | Routes, payloads & contract drift | Vercel production; public-provider/browser research or historical Supabase mirror; gateway remains unavailable; focused active-panel browser capture, desktop width 1600px; scroll-container height expanded only for capture")
 
-#text(size: 8pt, "Captured 2026-10-05T09:03:02.143Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text(size: 8pt, "Captured 2026-10-05T12:43:56.445Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-extra-040-developer-apis-Routes.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "116  Developer / API & Schema - Routes - continued")
+#image("../screenshots/audit-h-pane-49.png", width: 100%, height: 230mm, fit: "contain")
+#text("Control catalogue retained from the original capture; its values and selected states are historical. Current panel selection and data are shown in the replacement image and subtab-audit.json.")
 
-#text(size: 8pt, "#developer/apis | Routes, payloads & contract drift | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:03:02.143Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-extra-040-developer-apis-Routes-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "116  Developer / API & Schema - Routes - controls")
@@ -5452,15 +5228,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:43:26.010Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-051-markets-universe-positions.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "122  Markets / Universe / positions - continued")
-
-#text(size: 8pt, "#markets/universe/positions | Every family against the dollar it pays | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:26.010Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-051-markets-universe-positions-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -5642,15 +5409,6 @@
 #heading(level: 2)[#text("125  Markets / Settlement / formation")]
 
 #metadata("F054") <capture-F054>
-#text(size: 8pt, "#markets/settlement/formation | The published index, how it is formed & what is pending | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:32.223Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-054-markets-settlement-formation.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "125  Markets / Settlement / formation - continued")
-
 #text(size: 8pt, "#markets/settlement/formation | The published index, how it is formed & what is pending | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T08:43:32.223Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -5975,15 +5733,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:43:42.668Z; Limitations: sign-in required")
 
-#image("../screenshots/live-059-markets-dispersion-quotes.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "130  Markets / Makers / quotes - continued")
-
-#text(size: 8pt, "#markets/dispersion/quotes | What independent makers say, and what the channel answered | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:42.668Z; Limitations: sign-in required")
-
 #image("../screenshots/live-059-markets-dispersion-quotes-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -6015,24 +5764,16 @@
 )
 #set text(size: 9.8pt)
 #pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
+#set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #heading(level: 2)[#text("131  Markets / Makers / channel")]
 
 #metadata("F060") <capture-F060>
-#text(size: 8pt, "#markets/dispersion/channel | What independent makers say, and what the channel answered | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text("Both RFQ subtabs return the same account sign-in blocker. Distinct populated REST-poll evidence remains pending account access.")
 
-#text(size: 8pt, "Captured 2026-10-05T08:43:44.718Z; Limitations: sign-in required")
+#text("Both RFQ subtabs return the same account sign-in blocker. Distinct populated REST-poll evidence remains pending account access.")
 
-#image("../screenshots/live-060-markets-dispersion-channel.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "131  Markets / Makers / channel - continued")
+#link(<capture-F059>)[#context [page #counter(page).at(<capture-F059>).first()]]
 
-#text(size: 8pt, "#markets/dispersion/channel | What independent makers say, and what the channel answered | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:43:44.718Z; Limitations: sign-in required")
-
-#image("../screenshots/live-060-markets-dispersion-channel-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #text(size: 13pt, weight: "bold", "131  Markets / Makers / channel - controls")
@@ -6256,15 +5997,6 @@
 #heading(level: 2)[#text("135  Markets / Lattice / support")]
 
 #metadata("F064") <capture-F064>
-#text(size: 8pt, "#markets/lattice/support | Implied mass, its moments & the negative bins | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:59:52.608Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-064-markets-lattice-support.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "135  Markets / Lattice / support - continued")
-
 #text(size: 8pt, "#markets/lattice/support | Implied mass, its moments & the negative bins | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T08:59:52.608Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -6950,15 +6682,6 @@
 #heading(level: 2)[#text("147  Proofs / Coherence test / verdict")]
 
 #metadata("F076") <capture-F076>
-#text(size: 8pt, "#coherence/certificate/verdict | Whether these prices admit a probability, and the proof | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T09:00:44.198Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-076-coherence-certificate-verdict.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "147  Proofs / Coherence test / verdict - continued")
-
 #text(size: 8pt, "#coherence/certificate/verdict | Whether these prices admit a probability, and the proof | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T09:00:44.198Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -7834,15 +7557,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:03.212Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-091-coherence-calibration-score.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "162  Proofs / Scorecard / score - continued")
-
-#text(size: 8pt, "#coherence/calibration/score | Were the prices right, on what has settled | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:03.212Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-091-coherence-calibration-score-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -7939,15 +7653,6 @@
 #heading(level: 2)[#text("164  Proofs / Scorecard / components")]
 
 #metadata("F093") <capture-F093>
-#text(size: 8pt, "#coherence/calibration/components | Were the prices right, on what has settled | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:07.426Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-093-coherence-calibration-components.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "164  Proofs / Scorecard / components - continued")
-
 #text(size: 8pt, "#coherence/calibration/components | Were the prices right, on what has settled | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:07.426Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -8138,15 +7843,6 @@
 #heading(level: 2)[#text("168  Proofs / Corpus / composition")]
 
 #metadata("F097") <capture-F097>
-#text(size: 8pt, "#coherence/corpus/composition | What that score was computed on, and how it accrued | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:15.442Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-097-coherence-corpus-composition.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "168  Proofs / Corpus / composition - continued")
-
 #text(size: 8pt, "#coherence/corpus/composition | What that score was computed on, and how it accrued | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:15.442Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -8474,15 +8170,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:29.628Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-103-coherence-lessons-coverage.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "174  Proofs / Lessons / coverage - continued")
-
-#text(size: 8pt, "#coherence/lessons/coverage | The curriculum & what guards it | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:29.628Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-103-coherence-lessons-coverage-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -8769,15 +8456,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:43.305Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-109-diffusion-meetings-calendar.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "180  Diffusion / Meetings / calendar - continued")
-
-#text(size: 8pt, "#diffusion/meetings/calendar | Each decision's own half-life, and the two-stage window every comparison rests on | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:43.305Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-109-diffusion-meetings-calendar-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -8863,15 +8541,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:47.821Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-111-diffusion-episodes-survival.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "182  Diffusion / Kalshi episodes / survival - continued")
-
-#text(size: 8pt, "#diffusion/episodes/survival | How long a published mispricing survives | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:47.821Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-111-diffusion-episodes-survival-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -8918,15 +8587,6 @@
 #text(size: 8pt, "Captured 2026-10-05T08:45:50.990Z; Capture evidence only; current service availability is listed in the coverage index.")
 
 #image("../screenshots/live-112-diffusion-episodes-episodes-main-1.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "183  Diffusion / Kalshi episodes / episodes - continued")
-
-#text(size: 8pt, "#diffusion/episodes/episodes | How long a published mispricing survives | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:50.990Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-112-diffusion-episodes-episodes-main-2.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #text(size: 13pt, weight: "bold", "183  Diffusion / Kalshi episodes / episodes - continued")
@@ -9017,15 +8677,6 @@
 #heading(level: 2)[#text("185  Diffusion / Instrument / instrument")]
 
 #metadata("F114") <capture-F114>
-#text(size: 8pt, "#diffusion/instrument/instrument | The clock and the information spectrum built on top of it | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:45:55.607Z; Capture evidence only; current service availability is listed in the coverage index.")
-
-#image("../screenshots/live-114-diffusion-instrument-instrument.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "185  Diffusion / Instrument / instrument - continued")
-
 #text(size: 8pt, "#diffusion/instrument/instrument | The clock and the information spectrum built on top of it | Deployed Vercel UI with restored live gateway; paper verification positions")
 
 #text(size: 8pt, "Captured 2026-10-05T08:45:55.607Z; Capture evidence only; current service availability is listed in the coverage index.")
@@ -9264,15 +8915,6 @@
 
 #text(size: 8pt, "Captured 2026-10-05T08:46:07.075Z; Capture evidence only; current service availability is listed in the coverage index.")
 
-#image("../screenshots/live-119-diffusion-findings-table.png", width: 100%, height: 230mm, fit: "contain")
-#pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
-#text(size: 13pt, weight: "bold", "190  Diffusion / Findings / table - continued")
-
-#text(size: 8pt, "#diffusion/findings/table | What the study concluded, and whether it was fit to | Deployed Vercel UI with restored live gateway; paper verification positions")
-
-#text(size: 8pt, "Captured 2026-10-05T08:46:07.075Z; Capture evidence only; current service availability is listed in the coverage index.")
-
 #image("../screenshots/live-119-diffusion-findings-table-main-1.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
 #set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
@@ -9408,15 +9050,16 @@
 
 #image("../screenshots/live-extra-083-global-settings-dark-theme.png", width: 100%, height: 230mm, fit: "contain")
 #pagebreak()
-#set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
+#set page(paper: "a4", flipped: false, margin: (top: 26mm, bottom: 24mm, left: 22mm, right: 22mm))
 #heading(level: 2)[#text("194  Shared controls / Settings - full detail")]
 
 #metadata("F204") <capture-F204>
-#text(size: 8pt, "#global/settings |  | Deployed Vercel UI with restored live gateway; paper verification positions")
+#text("Same settings panel with only the detail preference changed. The available preference controls are documented once; no distinct feature output is visible in this capture.")
 
-#text(size: 8pt, "Captured 2026-10-05T09:07:26.526Z; Capture evidence only; current service availability is listed in the coverage index.")
+#text("Same settings panel with only the detail preference changed. The available preference controls are documented once; no distinct feature output is visible in this capture.")
 
-#image("../screenshots/live-extra-084-global-settings-full-detail.png", width: 100%, height: 230mm, fit: "contain")
+#link(<capture-F203>)[#context [page #counter(page).at(<capture-F203>).first()]]
+
 #pagebreak()
 #set page(paper: "a3", flipped: true, margin: (top: 18mm, bottom: 16mm, left: 20mm, right: 20mm))
 #heading(level: 2)[#text("195  Shared controls / Palette - all destinations")]

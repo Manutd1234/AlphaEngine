@@ -41,7 +41,7 @@ for row in matrix['interactions']:
  row['pdf_pages']=sorted({p for r in plan['records'] if r['hash']==row.get('hash') for p in capture_pages[r['capture_id']]})
 (EV/'interaction-matrix.json').write_text(json.dumps(matrix,indent=2,ensure_ascii=False)+'\n')
 with (EV/'interaction-matrix.csv').open('w',newline='') as f:
- w=csv.DictWriter(f,fieldnames=['id','kind','hash','file','line','label','status','evidence','pdf_pages'],extrasaction='ignore');w.writeheader();w.writerows(matrix['interactions'])
+ w=csv.DictWriter(f,fieldnames=['id','kind','hash','file','line','label','status','evidence','pdf_pages'],extrasaction='ignore',lineterminator='\n');w.writeheader();w.writerows(matrix['interactions'])
 assert len(placements)==len(expected),(len(placements),len(expected))
 assert not any(qa[k] for k in ['unmatched_images','missing_images','duplicate_images','bounds_failures','invalid_links']),qa
 print(json.dumps({k:v for k,v in qa.items() if k!='capture_pages'},indent=2),flush=True)

@@ -11,6 +11,8 @@ primary=read('view-manifest.json'); extra=read('supplementary-views.json')
 audit=read('ui-sweep.json') if (EV/'ui-sweep.json').exists() else {'routes':[],'interactions':[],'captures':[]}
 fixes=read('capture-fixes.json') if (EV/'capture-fixes.json').exists() else {'captures':[],'interactions':[]}
 source=read('source-controls.json')
+review=read('capture-review.json') if (EV/'capture-review.json').exists() else {}
+fresh=read('subtab-audit.json') if (EV/'subtab-audit.json').exists() else {}
 
 records=[]; omitted=[]
 for i,r in enumerate(primary+extra):
@@ -36,12 +38,30 @@ for i,r in enumerate(fixes.get('captures',[])):
   r['canonical']=old['canonical'];r['capture_id']=target;records[records.index(old)]=r
  else:records.append(r)
 
+# Explicit visual-review decisions complement hashes: changed clocks and selected
+# buttons do not make an otherwise repeated feature screenshot useful.
+for replacement in review.get('replacements',[]):
+ old=next(r for r in records if r['capture_id']==replacement['capture_id'])
+ omitted.append({'capture_id':old['capture_id'],'screenshots':old['screenshots'],'reason':'Replaced by focused Revision H active-panel capture.'})
+ old.update(replacement)
+for decision in review.get('omissions',[]):
+ r=next(r for r in records if r['capture_id']==decision['capture_id'])
+ if decision['file'] in r['screenshots']:
+  r['screenshots']=[f for f in r['screenshots'] if f!=decision['file']]
+  omitted.append(decision)
+for decision in review.get('shared_states',[]):
+ r=next(r for r in records if r['capture_id']==decision['capture_id'])
+ omitted.append({**decision,'screenshots':r['screenshots']})
+ r['screenshots']=[];r['shared_state']=decision
+
 pixel_owner={};image_owner={};unique_images=[]
 def pixels(name):
  with Image.open(WP/'screenshots'/name) as im:return hashlib.sha256(im.convert('RGB').tobytes()).hexdigest()
 pixel_owner[pixels('login.png')]='login';image_owner['login.png']='login';unique_images.append('login.png')
 for r in records:
  r['print_screenshots']=[];r['same_image_references']=[]
+ if r.get('shared_state'):
+  r['same_image_references'].append({'target':r['shared_state']['target'],'reason':r['shared_state']['reason'],'kind':'shared feature state'})
  for name in r['screenshots']:
   h=pixels(name)
   if h in pixel_owner:r['same_image_references'].append({'file':name,'target':pixel_owner[h]})
@@ -98,10 +118,12 @@ for route,group,options in pane_groups:
 write('subtab-coverage.json',{'scope':'Presentation panes outside the registered third-segment URL inventory; parameter choices are additionally tracked in the interaction matrix.','panes':pane_rows})
 
 route_rows=[];live={r['hash']:r for r in audit['routes']}
+for r in fresh.get('routes',[]):
+ live[r['hash']]={**r,'panelText':r.get('text',''),'status':'blocked' if r['status']=='blocked' else 'selection verified' if r.get('view_selection_check')=='passed' else 'rendered'}
 for r in primary:
  published=[x for x in records if x['hash']==r['hash'] and x['canonical']]
  s=live.get(r['hash'],{})
- route_rows.append({'hash':r['hash'],'desk':r['desk'],'section':r['section'],'view':r.get('view'),'capture_id':published[0]['capture_id'] if published else None,'screenshot_status':'captured' if published else 'missing','current_navigation':s.get('status','not checked'),'current_limitations':finding(s),'capture_limitations':published[0]['limitations'] if published else [],'backend_success':'not implied by navigation or screenshots'})
+ route_rows.append({'hash':r['hash'],'desk':r['desk'],'section':r['section'],'view':r.get('view'),'capture_id':published[0]['capture_id'] if published else None,'screenshot_status':('shared blocked state' if published[0].get('shared_state') else 'captured') if published else 'missing','current_navigation':s.get('status','not checked'),'current_limitations':finding(s),'capture_limitations':published[0]['limitations'] if published else [],'backend_success':'not implied by navigation or screenshots'})
 
 ledger=[]
 for i,c in enumerate(source['controls'],1):
@@ -109,8 +131,10 @@ for i,c in enumerate(source['controls'],1):
 for i,c in enumerate(source['listeners'],1):
  ledger.append({'id':f'L{i:03d}','kind':'event listener','file':c['file'],'line':c['line'],'label':c['call'],'status':'source documented; not individually exercised','evidence':'source-controls.json'})
 for i,r in enumerate(route_rows,1):
- ledger.append({'id':f'N{i:03d}','kind':'route navigation','hash':r['hash'],'label':'Open registered view','status':'passed' if r['current_navigation']=='rendered' else r['current_navigation'],'evidence':'ui-sweep.json','scope':'Visible expected section and non-empty content only; no backend-success inference.'})
+ ledger.append({'id':f'N{i:03d}','kind':'route navigation','hash':r['hash'],'label':'Open registered view','status':'passed' if r['current_navigation'] in ['rendered','selection verified'] else r['current_navigation'],'evidence':'subtab-audit.json' if fresh.get('routes') else 'ui-sweep.json','scope':'Visible expected section and non-empty content only; no backend-success inference.'})
 for i,x in enumerate(fixes.get('interactions',[])+audit.get('interactions',[]),1):ledger.append({'id':f'A{i:03d}','kind':'executed interaction',**x,'evidence':'capture-fixes.json / ui-sweep.json'})
+for i,x in enumerate(fresh.get('panes',[])+fresh.get('sandbox_check',{}).get('panes',[]),1):
+ ledger.append({'id':f'H{i:03d}','kind':'executed interaction','hash':x['hash'],'label':x['group']+' / '+x['option'],'status':'passed' if x['status']=='selected control and panel verified' else 'blocked','postcondition':'Selected presentation control asserted true; no backend-success inference.' if x['status']=='selected control and panel verified' else x.get('reason','Unavailable'),'scope':'Explicit generated Sandbox' if i>len(fresh.get('panes',[])) else 'Production guest session','evidence':'subtab-audit.json'})
 
 # Runtime controls are identified per route and group, retaining disabled and selected states.
 runtime=[];keys=set()
@@ -122,6 +146,6 @@ for r in audit['routes']+fixes.get('captures',[]):
 ledger.extend(runtime)
 write('interaction-matrix.json',{'definition':'Statuses are scoped. A source definition, rendered button, selected pane and verified backend mutation are different evidence units. No inferred passing status from presence alone.','source_revision':source.get('revision'),'counts':dict(collections.Counter(x['kind'] for x in ledger)),'status_counts':dict(collections.Counter(x['status'] for x in ledger)),'interactions':ledger})
 with (EV/'interaction-matrix.csv').open('w',newline='') as f:
- w=csv.DictWriter(f,fieldnames=['id','kind','hash','file','line','label','status','evidence'],extrasaction='ignore');w.writeheader();w.writerows(ledger)
-write('publication-plan.json',{'records':records,'omitted':omitted,'unique_images':unique_images,'image_owner':image_owner,'stats':{'canonical_views':len(primary),'published_states':len(records),'printed_screenshots':len(unique_images),'prior_placements':1+sum(len(x['screenshots']) for x in primary+extra),'omitted_disclosure_states':sum('disclosure' in x['reason'] for x in omitted),'exact_duplicate_placements':sum(len(x['same_image_references']) for x in records)},'coverage':route_rows,'pane_coverage':pane_rows})
+ w=csv.DictWriter(f,fieldnames=['id','kind','hash','file','line','label','status','evidence'],extrasaction='ignore',lineterminator='\n');w.writeheader();w.writerows(ledger)
+write('publication-plan.json',{'records':records,'omitted':omitted,'unique_images':unique_images,'image_owner':image_owner,'stats':{'canonical_views':len(primary),'published_states':len(records),'printed_screenshots':len(unique_images),'prior_placements':1+sum(len(x['screenshots']) for x in primary+extra),'omitted_disclosure_states':sum('disclosure' in x['reason'] for x in omitted),'exact_duplicate_placements':sum(sum(ref.get('kind')!='shared feature state' for ref in x['same_image_references']) for x in records)},'coverage':route_rows,'pane_coverage':pane_rows})
 print(json.dumps({'publication':len(records),'images':len(unique_images),'matrix':len(ledger),'coverage':len(route_rows)},indent=2))

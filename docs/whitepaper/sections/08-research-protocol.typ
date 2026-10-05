@@ -1,8 +1,8 @@
 #heading(level: 1)[#text("Research protocol, quantitative interpretation and verification")]
 
-#heading(level: 2)[#text("Revision G audit: deduplicated figures and interaction status")]
+#heading(level: 2)[#text("Revision H audit: visual content and selected subtabs")]
 
-#text("Revision G renames Chapter 9 to AlphaEngine Features, groups each supplementary pane with its parent section, and adds a linked Oracle page index plus registered-view and internal-subtab coverage tables. Exact image duplicates and repeated disclosure captures are not reprinted. The underlying original evidence remains attached and retained in the repository.")
+#text("Chapter 9 remains AlphaEngine Features with a linked Oracle page index. Revision H replaces 37 image sets with focused active-panel browser captures and removes visually repeated content, including small-scroll overlaps that exact hashes missed. The fresh audit asserts all 70 selectable URL views and 50 internal presentation panes. Thirteen live Portfolio/Risk routes are blocked by the unreachable gateway; their generated Sandbox variants are checked separately. The underlying original evidence remains attached and retained in the repository. This is an incomplete live-service acceptance audit, not a claim that every feature works.")
 
 #text("New production captures include a byte-exact browser Monte Carlo parity result, six-provider cross-source reconciliation, settled Oracle search health, a 90-day Oracle VaR calculation, Research Adjustments, Robustness and Sharpe colouring, and previously omitted Execution panes. Gateway-dependent captures disclose the continuing outage. Some views are represented by earlier dated working captures because current gateway access is unavailable.")
 
@@ -38,7 +38,7 @@
 
 #text("This chapter documents AlphaEngine as an inspectable quantitative research system, with an empirical software-verification study and a visual instrument catalogue. It connects each registered workspace section to a research question, mathematical or operational method, input intervention and interpretation boundary. It is not a new backtest claiming profitable alpha. Its reproducible contribution is the linkage between the implemented estimator, the visible control that changes it, and the evidence needed to interpret its output.")
 
-#text("The observation set contains 11 tabs, 70 sections, 120 registered URL views and 92 supplementary interface states. The visual appendix contains 372 screenshot placements from 372 distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 855 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.")
+#text("The observation set contains 11 tabs, 70 sections, 120 registered URL views and 92 supplementary interface states. The visual appendix contains 315 screenshot placements from 315 distinct browser captures. An AST inventory records 964 source control definitions and 49 event-listener registrations across 855 source files. These denominators describe different populations and must not be added together or treated as independent trials. One source definition can generate many runtime buttons; one view can require several screenshots.")
 
 #text("The study combines deployed-interface capture with local numerical, contract and browser tests. The deployed build observed during capture was 726bbe7; local source was 5225f3e2 plus the documented test fixture and Oracle chart-margin corrections. Deployment parity is therefore not established. The initial outage screenshots were rechecked and replaced after restoring the gateway at the user request. The deployed Vercel UI reads real providers, Oracle calculations and retained analytical history. Three accepted paper verification orders populate the live paper book. Supplemental portfolio/risk views explicitly select Sandbox and identify generated inputs. No real-money trade or destructive operator action was executed.")
 
@@ -164,7 +164,7 @@ $ tau_H = integral_0^H (1-a(t)) dif t $
 [#text("Browser suite")],[#text("23 cases initially: 22 passed, 1 failed; targeted five-case recheck: all passed")],[#text("The failure was a test fixture assumption; no unresolved failure in these selected files.")],
 [#text("TypeScript")],[#text("Typecheck exit 0")],[#text("Static typing of local source after generated development types were available.")],
 [#text("Route navigation")],[#text("120 of 120 passed; no uncaught page errors")],[#text("Expected workspace and section visible with non-empty content; Portfolio/Risk use explicitly selected Sandbox.")],
-[#text("Visual census")],[#text("120 canonical views; 92 supplementary states; 372 screenshot placements")],[#text("Rendered coverage of live Vercel states, explicit Sandbox states and documented access/data limitations.")],
+[#text("Visual census")],[#text("120 canonical views; 92 supplementary states; 315 screenshot placements")],[#text("Rendered coverage of live Vercel states, explicit Sandbox states and documented access/data limitations.")],
 [#text("Source census")],[#text("964 controls; 49 listener registrations; 854 files scanned")],[#text("Implementation inventory, not a 964-of-964 behavioral success claim.")],
 )
 
